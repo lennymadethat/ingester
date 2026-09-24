@@ -1,0 +1,19 @@
+{
+  "name": "ingester",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Drop a file, get a memory. An always-on Cloudflare Worker that reads, classifies and files anything you drop into an inbox, writing pages into a Second Brain library through a squad of small agents.",
+  "license": "MIT",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail",
+    "check": "wrangler deploy --dry-run --outdir .wrangler/dry"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.95.0"
+  }
+}

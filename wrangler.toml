@@ -1,0 +1,56 @@
+# Ingester — drop a file, get a memory. One Cloudflare Worker.
+#
+# Committed: no secrets, no account IDs. `wrangler login` supplies the account.
+# Secrets (wrangler secret put NAME):
+#   ANTHROPIC_API_KEY           reads and classifies every file
+#   OPENAI_API_KEY              embeddings for the library (text-embedding-3-large)
+#   SUPABASE_SERVICE_ROLE_KEY   the Second Brain library (pages, chunks, ledger)
+#   INGESTER_TOKEN              gates /run, /upload, /status, /dream
+
+name = "ingester"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+INGESTER_VERSION = "1.0.0"
+# Your Second Brain library (the key is a secret).
+SUPABASE_URL = "https://YOUR_PROJECT_REF.supabase.co"
+# Model that reads and classifies. claude-opus-5 by default; claude-sonnet-5 is
+# the cheaper choice for a busy inbox.
+MODEL = "claude-opus-5"
+# Your worlds. key=description, separated by semicolons. The classifier can only
+# pick one of these (or "unknown"); filed originals land under processed/{key}/.
+DOMAINS = "work=your job or company; finance=money, receipts, bills, statements; personal=friends, home, health"
+# One line naming what you work on. Powers the cross-project agent; leave empty
+# to keep it quiet.
+OWNER_CONTEXT = ""
+# Browser origins allowed to call the upload route (a dashboard, a drop page).
+ALLOWED_ORIGINS = "http://localhost:3000"
+# R2 key prefix where filed originals are moved (anything NOT under it = inbox).
+PROCESSED_PREFIX = "processed/"
+
+[triggers]
+# */15 = the intake sweep. Sunday 12:00 UTC = the Dream pass.
+crons = ["*/15 * * * *", "0 12 * * SUN"]
+
+[observability]
+enabled = true
+
+# The inbox. Drop files at the bucket root; filed originals move under processed/{domain}/.
+[[r2_buckets]]
+binding = "INBOX"
+bucket_name = "ingester-inbox"
+
+# Durable job queue: the sweep enqueues one job per file; the consumer runs the
+# sorter, then one job per agent. Isolated failure, automatic retry.
+[[queues.producers]]
+binding = "JOBS"
+queue = "ingester-jobs"
+
+[[queues.consumers]]
+queue = "ingester-jobs"
+max_batch_size = 1
+max_batch_timeout = 5
+max_retries = 10
+dead_letter_queue = "ingester-dlq"
